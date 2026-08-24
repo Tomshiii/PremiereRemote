@@ -10,13 +10,13 @@ const swaggerUi = require(dir + "/node_modules/swagger-ui-express/index.js");
 const websocket = require(dir + "/node_modules/ws/index.js");
 
 function init() {
-    console.log("Starting PremiereRemote initialization...");
+    console.log("Starting AERemote initialization...");
 
     // Setup server
-    console.log("Starting PremiereRemote server setup...");
+    console.log("Starting AERemote server setup...");
     const app = express();
     const router = express.Router();
-    console.log("Finished PremiereRemote server setup.");
+    console.log("Finished AERemote server setup.");
 
     // Setup swagger endpoint
     console.log("Starting Swagger setup...");
@@ -80,7 +80,7 @@ function init() {
     console.log("Finished WebSocket server setup.");
 
     // Start server
-    console.log(`Starting the PremiereRemote server now on port ${SERVER_PORT}.`);
+    console.log(`Starting the AERemote server now on port ${SERVER_PORT}.`);
     app.use('/', router);
     app.listen(SERVER_PORT);
 
@@ -93,16 +93,16 @@ function init() {
     document.getElementById("statusContainer").innerHTML = "Ready!";
     document.getElementById("statusContainer").className = "green";
 
-    console.log("Finished PremiereRemote initialization.")
+    console.log("Finished AERemote initialization.")
 }
 
 function setupWebSocketServer() {
-    console.log(`Starting the PremiereRemote websocket server now on port ${WS_SERVER_PORT}.`);
+    console.log(`Starting the AERemote websocket server now on port ${WS_SERVER_PORT}.`);
     const wss = new websocket.WebSocketServer({ port: WS_SERVER_PORT });
 
     wss.on('connection', function connection(ws) {
       ws.on('error', console.error);
-    
+
       ws.on('message', function message(data) {
         const parts = String(data).split(",");
         if(parts.length < 1) {
@@ -110,7 +110,7 @@ function setupWebSocketServer() {
         } else {
             const command = parts[0];
             const values = parts.slice(1).join(",");
-            document.getElementById("lastCommandContainer").innerHTML = 
+            document.getElementById("lastCommandContainer").innerHTML =
             `ws: ${command}`;
             csInterface.evalScript(`host.${command}(${values});`);
         }
@@ -122,9 +122,9 @@ function setupSwagger(swaggerApp) {
     const options = {
         swaggerDefinition: {
             info: {
-                title: 'PremiereRemote',
-                version: PREMIERE_REMOTE_VERSION,
-                description: 'Customizable remote access to Adobe Premiere Pro CEP.',
+                title: 'AERemote',
+                version: AE_REMOTE_VERSION,
+                description: 'Customizable remote access to Adobe AE Pro CEP.',
             },
         },
         // List of files to be processed

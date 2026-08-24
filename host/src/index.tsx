@@ -31,12 +31,3 @@ export const host = {
     alert(param1 + " " + param2);
   }
 };
-
-/**
- * These functions are only used internally.
- */
-export const framework = {
-  enableQualityEngineering: function () {
-    app.enableQE();
-  }
-};

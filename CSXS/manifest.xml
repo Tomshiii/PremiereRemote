@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<ExtensionManifest ExtensionBundleId="de.sebinside.premiereremote" ExtensionBundleVersion="1.0" Version="12.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<ExtensionManifest ExtensionBundleId="de.sebinside.aeremote" ExtensionBundleVersion="1.0" Version="12.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <ExtensionList>
-    <Extension Id="de.sebinside.premiereremote.panel" Version="2.1.0" />
+    <Extension Id="de.sebinside.aeremote.panel" Version="2.1.0" />
   </ExtensionList>
   <ExecutionEnvironment>
     <HostList>
@@ -15,7 +15,7 @@
     </RequiredRuntimeList>
   </ExecutionEnvironment>
   <DispatchInfoList>
-    <Extension Id="de.sebinside.premiereremote.panel">
+    <Extension Id="de.sebinside.aeremote.panel">
       <DispatchInfo>
         <Resources>
           <MainPath>./client/index.html</MainPath>
@@ -29,7 +29,7 @@
         </Lifecycle>
         <UI>
           <Type>Panel</Type>
-          <Menu>PremiereRemote</Menu>
+          <Menu>AERemote</Menu>
           <Geometry>
             <Size>
               <Height>50</Height>

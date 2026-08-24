@@ -1,6 +1,6 @@
  <?xml version="1.0" encoding="UTF-8"?>
  <ExtensionList>
-        <Extension Id="de.sebinside.premiereremote.panel">
+        <Extension Id="de.sebinside.aeremote.panel">
            <HostList>
             <Host Name="DRWV" Port="8701"/>
             <Host Name="FLPR" Port="8702"/>
@@ -15,4 +15,4 @@
             <Host Name="DEMO" Port="8711"/>
         </HostList>
         </Extension>
-    </ExtensionList>    
+    </ExtensionList>
