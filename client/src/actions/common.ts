@@ -3,6 +3,7 @@
  */
 
 import type {
+    CompoundAction,
     premierepro,
     Sequence,
     TickTime,
@@ -32,6 +33,59 @@ export async function getActiveSequenceName(): Promise<string | null> {
     if (!sequence) return null;
 
     return sequence.name;
+}
+
+/**
+ * A simple playground function that can be used to test Premiere Pro API.
+ */
+export async function playground(): Promise<void> {
+    console.log("Playground function called");
+
+    const project = await ppro.Project.getActiveProject();
+    if (!project) return;
+
+    const sequence = await project.getActiveSequence();
+    if (!sequence) return;
+
+    const playHeadPosition: TickTime = await sequence.getPlayerPosition();
+    console.log(
+        `Current playhead position: ${playHeadPosition.seconds} seconds, ${playHeadPosition.ticksNumber} ticks`,
+    );
+
+    let relevantClips = [];
+
+    const trackCount = await sequence.getVideoTrackCount();
+    for (let i = 0; i < trackCount; i++) {
+        const track = await sequence.getVideoTrack(i);
+        const trackName = track.name;
+        console.log(`Track ${i}: ${trackName}`);
+
+        const trackItems = track.getTrackItems(Constants.TrackItemType.CLIP, false);
+        for (const item of trackItems) {
+            const itemName = await item.getName();
+            const startTime = await item.getStartTime();
+            const endTime = await item.getEndTime();
+            console.log(
+                `  Item: ${itemName}, In: ${startTime.seconds}s, Out: ${endTime.seconds}s`,
+            );
+
+            if (startTime.seconds <= playHeadPosition.seconds && endTime.seconds >= playHeadPosition.seconds) {
+                relevantClips.push(item);
+            }
+        }
+
+    }
+    console.log(`Relevant clips: ${relevantClips.length}`);
+
+    project.lockedAccess(() => {
+        let trimActions = relevantClips.map(item => item.createSetStartAction(playHeadPosition));
+        
+        project.executeTransaction((compoundAction: CompoundAction) => {
+            for (const action of trimActions) {
+                compoundAction.addAction(action);
+            }
+        });
+    })
 }
 
 type TimeStamp = {
