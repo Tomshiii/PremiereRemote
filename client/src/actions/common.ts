@@ -60,7 +60,10 @@ export async function playground(): Promise<void> {
         const trackName = track.name;
         console.log(`Track ${i}: ${trackName}`);
 
-        const trackItems = track.getTrackItems(Constants.TrackItemType.CLIP, false);
+        const trackItems = track.getTrackItems(
+            Constants.TrackItemType.CLIP,
+            false,
+        );
         for (const item of trackItems) {
             const itemName = await item.getName();
             const startTime = await item.getStartTime();
@@ -69,23 +72,27 @@ export async function playground(): Promise<void> {
                 `  Item: ${itemName}, In: ${startTime.seconds}s, Out: ${endTime.seconds}s`,
             );
 
-            if (startTime.seconds <= playHeadPosition.seconds && endTime.seconds >= playHeadPosition.seconds) {
+            if (
+                startTime.seconds <= playHeadPosition.seconds &&
+                endTime.seconds >= playHeadPosition.seconds
+            ) {
                 relevantClips.push(item);
             }
         }
-
     }
     console.log(`Relevant clips: ${relevantClips.length}`);
 
     project.lockedAccess(() => {
-        let trimActions = relevantClips.map(item => item.createSetStartAction(playHeadPosition));
-        
+        let trimActions = relevantClips.map((item) =>
+            item.createSetStartAction(playHeadPosition),
+        );
+
         project.executeTransaction((compoundAction: CompoundAction) => {
             for (const action of trimActions) {
                 compoundAction.addAction(action);
             }
         });
-    })
+    });
 }
 
 type TimeStamp = {

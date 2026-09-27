@@ -21,6 +21,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     });
 }
 
+/** Generates the API boilerplate, registry and OpenAPI specification. Central function of the API generation process. */
 export function generateApi({ actionsDir, openApiOutPath, registryOutPath }) {
     const scriptsDirectoryName = path.dirname(fileURLToPath(import.meta.url));
     const { version } = JSON.parse(
@@ -49,8 +50,10 @@ export function generateApi({ actionsDir, openApiOutPath, registryOutPath }) {
             actionsDir,
             registryOutPath,
         });
+
         if (result.actionCount > 0) tags.add(result.namespace);
         Object.assign(openApiPaths, result.openApiPaths);
+
         registryImports += result.importLines;
         registryEntries += result.registryEntries;
         actionCount += result.actionCount;
@@ -82,6 +85,7 @@ export function generateApi({ actionsDir, openApiOutPath, registryOutPath }) {
     );
 }
 
+/** Processes a source file and returns all information required to handle the API and registry creation. */
 function processSourceFile(sourceFile, { actionsDir, registryOutPath }) {
     const namespace = path
         .relative(actionsDir, sourceFile.getFilePath())
@@ -122,6 +126,7 @@ function processSourceFile(sourceFile, { actionsDir, registryOutPath }) {
     };
 }
 
+/** Process a single action in a source file.  */
 function processAction(action, { namespace, namespaceAlias, importPath }) {
     const name = action.getName();
     console.log(
@@ -159,26 +164,7 @@ function processAction(action, { namespace, namespaceAlias, importPath }) {
     };
 }
 
-function resolveParamType(param) {
-    const rawType = param
-        .getType()
-        .getText(undefined, TypeFormatFlags.NoTruncation);
-    const stripped = rawType
-        .replace(/\s*\|\s*(undefined|null)\s*/g, "")
-        .replace(/\s*(undefined|null)\s*\|\s*/g, "")
-        .trim();
-    const knownType = {
-        string: "string",
-        number: "number",
-        boolean: "boolean",
-    }[stripped];
-    if (!knownType)
-        console.warn(
-            `   ⚠️ Warning: unsupported parameter type "${rawType}", falling back to string`,
-        );
-    return knownType ?? "string";
-}
-
+/** Extracts the parameters from an action, their descriptions, and required status. */
 function extractParams(action, jsDoc) {
     const properties = {};
     const required = new Set();
@@ -207,6 +193,31 @@ function extractParams(action, jsDoc) {
     return { properties, required };
 }
 
+/** Resolves the type of a parameter to a known OpenAPI type. Warns if no matching type is found. */
+function resolveParamType(param) {
+    const rawType = param
+        .getType()
+        .getText(undefined, TypeFormatFlags.NoTruncation);
+    const stripped = rawType
+        .replace(/\s*\|\s*(undefined|null)\s*/g, "")
+        .replace(/\s*(undefined|null)\s*\|\s*/g, "")
+        .trim();
+    const knownType = {
+        string: "string",
+        number: "number",
+        boolean: "boolean",
+    }[stripped];
+    if (!knownType)
+        console.warn(
+            `   ⚠️ Warning: unsupported parameter type "${rawType}", falling back to string`,
+        );
+    return knownType ?? "string";
+}
+
+/**
+ * Extracts the return information from an action, including the return type and description.
+ * Supports unwrapping Promise types and removing null/undefined from union types.
+ */
 function getReturnInfo(action, jsDoc) {
     const returnType = action
         .getReturnType()
@@ -246,6 +257,7 @@ function getReturnInfo(action, jsDoc) {
     return { schema, returnsDoc };
 }
 
+/** Uses the given information on a single action and their properties to create a openapi-conformant object. */
 function buildOpenApiOperation({
     name,
     namespace,
@@ -297,6 +309,7 @@ function buildOpenApiOperation({
     };
 }
 
+/** Uses the given information on a single action to create a registry entry. */
 function buildRegistryEntry({
     name,
     namespace,
