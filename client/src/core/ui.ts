@@ -40,7 +40,13 @@ export function reset(): void {
     setStatus(Statuses.INITIALIZING);
 }
 
+const IGNORED_COMMANDS = new Set<string>([
+    "isPanelOpen",
+]);
+
 function setLastCommand(name: string, source: SourceType): void {
+    if (IGNORED_COMMANDS.has(name)) return;
+
     const nameElement = document.getElementById("last-command-name");
     const sourceElement = document.getElementById("last-command-source");
     if (nameElement) nameElement.textContent = name;
