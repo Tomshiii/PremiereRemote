@@ -9,7 +9,7 @@
   },
   "manifestVersion": 5,
   "requiredPermissions": {
-    "localFileSystem": "request",
+    "localFileSystem": "fullAccess",
     "clipboard": "readAndWrite",
     "network": {
       "domains": [
@@ -38,7 +38,7 @@
         "height": 210
       },
       "label": {
-        "default": "Main Panel"
+        "default": "PremiereRemote (UXP)"
       },
       "icons": [
         {
