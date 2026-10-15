@@ -9,6 +9,22 @@ const swaggerJsDoc = require(dir + "/node_modules/swagger-jsdoc/index.js");
 const swaggerUi = require(dir + "/node_modules/swagger-ui-express/index.js");
 const websocket = require(dir + "/node_modules/ws/index.js");
 
+// Commands that still run, but are not shown in the "last command" display
+// and are not logged to the console.
+const IGNORED_COMMANDS = new Set([
+    "isPanelOpen",
+]);
+
+function isIgnored(command) {
+    return IGNORED_COMMANDS.has(command);
+}
+
+function setLastCommand(command, source) {
+    if (isIgnored(command)) return;
+    document.getElementById("lastCommandContainer").innerHTML =
+        source === "ws" ? `ws: ${command}` : command;
+}
+
 function init() {
     console.log("Starting PremiereRemote initialization...");
 
@@ -102,16 +118,14 @@ function setupWebSocketServer() {
 
     wss.on('connection', function connection(ws) {
       ws.on('error', console.error);
-    
       ws.on('message', function message(data) {
         const parts = String(data).split(",");
         if(parts.length < 1) {
             console.error("Invalid websocket message format. Expected: '<command>' or '<command>,<comma-separated-values>'");
         } else {
-            const command = parts[0];
+            const command = parts[0].trim();
             const values = parts.slice(1).join(",");
-            document.getElementById("lastCommandContainer").innerHTML = 
-            `ws: ${command}`;
+            setLastCommand(command, "ws");
             csInterface.evalScript(`host.${command}(${values});`);
         }
       });
@@ -147,8 +161,9 @@ function extractParameters(signature) {
 }
 
 function executeCommand(command, params, res) {
-    console.log(`Retrieved endpoint call: "${command}"`);
-    document.getElementById("lastCommandContainer").innerHTML = command;
+    const ignored = isIgnored(command);
+    if (!ignored) console.log(`Retrieved endpoint call: "${command}"`);
+    setLastCommand(command, "http");
 
     command += "(";
     for (let i = 0; i < params.length; i++) {
@@ -160,7 +175,7 @@ function executeCommand(command, params, res) {
     }
     command += ");";
 
-    console.log(`Execute command: "${command}"`);
+    if (!ignored) console.log(`Execute command: "${command}"`);
     csInterface.evalScript("host." + command, function (functionResult) {
         if(res) {
             res.json({ message: 'ok.', result: functionResult });
