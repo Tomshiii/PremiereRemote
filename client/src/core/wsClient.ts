@@ -9,6 +9,7 @@ const RECONNECT_INTERVAL = 3000;
 export class WsClient {
     private ws: WebSocket | null = null;
     private stopped = false;
+    private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
     constructor(
         private readonly registry: Registry,
@@ -16,6 +17,7 @@ export class WsClient {
     ) {}
 
     start(): void {
+        if (this.ws && this.ws.readyState <= WebSocket.OPEN) return; // CONNECTING or OPEN
         this.ui.reset();
         this.stopped = false;
         this.connect();
@@ -23,6 +25,10 @@ export class WsClient {
 
     stop(): void {
         this.stopped = true;
+        if (this.reconnectTimer) {
+            clearTimeout(this.reconnectTimer);
+            this.reconnectTimer = null;
+        }
         this.ws?.close();
     }
 
@@ -98,7 +104,8 @@ export class WsClient {
         }
     }
 
-    private connect(): void {
+    private connect() {
+        if (this.stopped) return;
         this.ws = new WebSocket(WEBSOCKET_URL);
 
         this.ws.addEventListener("open", () => {
@@ -135,7 +142,8 @@ export class WsClient {
     }
 
     private scheduleReconnect(): void {
-        setTimeout(() => {
+        this.reconnectTimer = setTimeout(() => {
+            this.reconnectTimer = null;
             this.connect();
         }, RECONNECT_INTERVAL);
     }
