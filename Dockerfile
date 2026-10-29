@@ -1,6 +1,6 @@
 # 1. Generate openapi.json from UXP plugin
 FROM node:lts-alpine AS api-gen
-RUN corepack enable
+RUN npm install -g corepack && corepack enable
 WORKDIR /app
 
 COPY client/package.json client/pnpm-lock.yaml client/pnpm-workspace.yaml ./client/
@@ -14,7 +14,7 @@ RUN cd client && node scripts/generate-api.js
 
 # 2. Copy openapi.json to build the server image
 FROM node:lts-alpine AS builder
-RUN corepack enable
+RUN npm install -g corepack && corepack enable
 WORKDIR /app
 
 COPY server/package.json server/pnpm-lock.yaml server/pnpm-workspace.yaml ./
@@ -32,7 +32,7 @@ FROM node:lts-alpine
 # Use tini to fixe Ctrl+Cl handling in container
 RUN apk add --no-cache tini
 
-RUN corepack enable
+RUN npm install -g corepack && corepack enable
 WORKDIR /app
 
 COPY server/package.json server/pnpm-lock.yaml server/pnpm-workspace.yaml ./
