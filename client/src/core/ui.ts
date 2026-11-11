@@ -41,7 +41,7 @@ export function reset(): void {
 }
 
 const IGNORED_COMMANDS = new Set<string>([
-    "isPanelOpen", "restoreActiveSequence", "snapshotActiveSequence"
+    "isPanelOpen", "armSequenceGuard", "disarmSequenceGuard", "getRegistryJSON"
 ]);
 
 function setLastCommand(name: string, source: SourceType): void {
