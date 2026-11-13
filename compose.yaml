@@ -6,3 +6,4 @@ services:
       - "42401:42401"
       - "42402:42402"
       - "42403:42403"
+    restart: unless-stopped
