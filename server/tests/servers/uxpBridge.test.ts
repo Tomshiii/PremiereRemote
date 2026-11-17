@@ -130,4 +130,143 @@ describe("UxpBridge", () => {
             expect(result.message).toBe("Request timed out");
         });
     });
+
+    describe("multiple hosts", () => {
+        let ae: WebSocket | undefined;
+
+        afterEach(() => ae?.close());
+
+        async function connectFakeAe(): Promise<WebSocket> {
+            ae = new WebSocket(
+                `ws://localhost:${bridge.boundPort}/?host=aftereffects`,
+            );
+            await waitForOpen(ae);
+            return ae;
+        }
+
+        it("accepts Premiere and After Effects at the same time", async () => {
+            bridge = new UxpBridge(0);
+            await bridge.start();
+            await connectFakePanel();
+            await connectFakeAe();
+
+            expect(bridge.isConnected()).toBe(true);
+            expect(bridge.isConnected("custom/save")).toBe(true);
+            expect(bridge.isConnected("ae/custom/save")).toBe(true);
+        });
+
+        it("treats a connection without ?host as Premiere", async () => {
+            bridge = new UxpBridge(0);
+            await bridge.start();
+            await connectFakePanel();
+
+            expect(bridge.isConnected("custom/save")).toBe(true);
+            expect(bridge.isConnected("ae/custom/save")).toBe(false);
+        });
+
+        it("routes each action to the panel of its own host", async () => {
+            bridge = new UxpBridge(0);
+            await bridge.start();
+            const premiere = await connectFakePanel();
+            const aeSocket = await connectFakeAe();
+
+            const aeIncoming = waitForMessage(aeSocket);
+            const aePromise = bridge.sendToUxp("ae/custom/save", {}, "http");
+            expect((await aeIncoming).actionId).toBe("ae/custom/save");
+
+            const premiereIncoming = waitForMessage(premiere);
+            const premierePromise = bridge.sendToUxp("custom/save", {}, "http");
+            expect((await premiereIncoming).actionId).toBe("custom/save");
+
+            aeSocket.send(
+                JSON.stringify({
+                    id: (await aeIncoming).id,
+                    status: "OK",
+                    result: "ae",
+                }),
+            );
+            premiere.send(
+                JSON.stringify({
+                    id: (await premiereIncoming).id,
+                    status: "OK",
+                    result: "premiere",
+                }),
+            );
+
+            expect((await aePromise).result).toBe("ae");
+            expect((await premierePromise).result).toBe("premiere");
+        });
+
+        it("reports which host is missing", async () => {
+            bridge = new UxpBridge(0);
+            await bridge.start();
+            await connectFakePanel();
+
+            const result = await bridge.sendToUxp("ae/custom/save", {}, "ws");
+
+            expect(result.message).toBe("After Effects is not connected");
+        });
+
+        it("keeps the other host connected when one disconnects", async () => {
+            bridge = new UxpBridge(0);
+            await bridge.start();
+            await connectFakePanel();
+            const aeSocket = await connectFakeAe();
+            aeSocket.close();
+
+            await vi.waitFor(() =>
+                expect(bridge.isConnected("ae/custom/save")).toBe(false),
+            );
+            expect(bridge.isConnected()).toBe(true);
+        });
+
+        it("only fails the pending requests of the host that disconnected", async () => {
+            bridge = new UxpBridge(0, 2000);
+            await bridge.start();
+            const premiere = await connectFakePanel();
+            const aeSocket = await connectFakeAe();
+
+            const premiereIncoming = waitForMessage(premiere);
+            const premierePromise = bridge.sendToUxp("custom/save", {}, "ws");
+            const premiereMsg = await premiereIncoming;
+            const aePromise = bridge.sendToUxp("ae/custom/save", {}, "ws");
+
+            aeSocket.close();
+            expect((await aePromise).message).toBe("UXP connection closed");
+
+            premiere.send(
+                JSON.stringify({ id: premiereMsg.id, status: "OK", result: 1 }),
+            );
+            expect((await premierePromise).status).toBe("OK");
+        });
+
+        it("rejects a second connection of the same host only", async () => {
+            bridge = new UxpBridge(0);
+            await bridge.start();
+            await connectFakeAe();
+
+            const second = new WebSocket(
+                `ws://localhost:${bridge.boundPort}/?host=aftereffects`,
+            );
+            await waitForOpen(second);
+            const { code, reason } = await waitForClose(second);
+
+            expect(code).toBe(1008);
+            expect(reason).toBe("Only one After Effects connection is allowed");
+        });
+
+        it("rejects an unknown host", async () => {
+            bridge = new UxpBridge(0);
+            await bridge.start();
+
+            const unknown = new WebSocket(
+                `ws://localhost:${bridge.boundPort}/?host=photoshop`,
+            );
+            await waitForOpen(unknown);
+            const { code, reason } = await waitForClose(unknown);
+
+            expect(code).toBe(1008);
+            expect(reason).toBe("Unknown host");
+        });
+    });
 });

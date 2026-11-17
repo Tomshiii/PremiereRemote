@@ -109,6 +109,7 @@ export class MCPServer implements ManagedServer {
                 tools: this.operations.size,
                 sessions: this.transports.size,
                 premiereConnected: this.bridge.isConnected(),
+                aftereffectsConnected: this.bridge.isConnected("ae/"),
             });
         });
     }
@@ -244,7 +245,7 @@ export class MCPServer implements ManagedServer {
             this.validators,
             name,
             args,
-            this.bridge.isConnected(),
+            this.bridge.isConnected(name),
         );
         if (failure) {
             return this.toolResult({

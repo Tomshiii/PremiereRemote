@@ -1,7 +1,7 @@
 {
   "id": "de.sebinside.premiereremote",
   "name": "PremiereRemote",
-  "version": "3.0.0",
+  "version": "4.0.2",
   "main": "build/index.html",
   "host": {
     "app": "premierepro",
@@ -38,7 +38,7 @@
         "height": 210
       },
       "label": {
-        "default": "PremiereRemote (UXP)"
+        "default": "PremiereRemote"
       },
       "icons": [
         {

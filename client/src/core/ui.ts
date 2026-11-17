@@ -1,4 +1,5 @@
 import type { SourceType } from "premiereremote-shared";
+import { HOST_LABELS, type HostId } from "premiereremote-shared/config";
 import { StatusState, Status, UIInterface } from "./types.js";
 
 const counts: Record<SourceType, number> = { ws: 0, http: 0, mcp: 0 };
@@ -31,6 +32,12 @@ export const Statuses = {
 } as const;
 
 export const ui: UIInterface = { setLastCommand, setStatus, reset };
+
+/** Shows which application this panel is connected to (the same panel runs in Premiere Pro and After Effects). */
+export function showHost(host: HostId): void {
+    const label = document.getElementById("host-label");
+    if (label) label.textContent = HOST_LABELS[host];
+}
 
 export function reset(): void {
     for (const source of Object.keys(counts) as SourceType[]) {

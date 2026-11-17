@@ -1,6 +1,7 @@
 import { readFileSync } from "fs";
 import { Ajv, type ValidateFunction, type ErrorObject } from "ajv";
 import type { ResponseStatus } from "premiereremote-shared";
+import { HOST_LABELS, hostForAction } from "premiereremote-shared/config";
 
 /** Abstract representation of an OpenAPI operation, as parsed from `openapi.json`. Not the full specification, limited to what's needed by the servers. */
 export interface OpenAPIOperation {
@@ -129,7 +130,7 @@ export function validateCall(
     if (!isBridgeConnected) {
         return {
             status: "INTERNAL_ERROR",
-            message: "Premiere Pro is not connected",
+            message: `${HOST_LABELS[hostForAction(action)]} is not connected`,
         };
     }
 

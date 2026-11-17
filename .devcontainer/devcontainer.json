@@ -4,6 +4,7 @@
     "dockerfile": "Dockerfile"
   },
   "postCreateCommand": ".devcontainer/post-install.sh",
+  "postAttachCommand": ".devcontainer/post-attach.sh",
   "initializeCommand": "mkdir -p \"${localEnv:HOME}/.claude\" && touch \"${localEnv:HOME}/.claude.json\" && .devcontainer/link-sync-dir.sh",
   "forwardPorts": [42400, 42401, 42402, 42403],
   "features": {

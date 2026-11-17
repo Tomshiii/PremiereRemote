@@ -143,7 +143,7 @@ export class WsServer implements ManagedServer {
             this.validators,
             message.action,
             args,
-            this.bridge.isConnected(),
+            this.bridge.isConnected(message.action),
         );
         if (failure) {
             this.sendResponse(ws, {

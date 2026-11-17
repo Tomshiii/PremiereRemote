@@ -6,16 +6,29 @@ import type {
     ServerMessage,
     SourceType,
 } from "premiereremote-shared";
-import { UXP_REQUEST_TIMEOUT_MS } from "premiereremote-shared/config";
+import {
+    UXP_REQUEST_TIMEOUT_MS,
+    HOSTS,
+    HOST_LABELS,
+    hostForAction,
+    type HostId,
+} from "premiereremote-shared/config";
 import type { ManagedServer } from "./server.js";
 import { log, logError, logAndExit } from "../log.js";
 
 /** WebSocket close code for "Policy Violation" */
 const CLOSE_POLICY_VIOLATION = 1008;
 
+/** Host assumed for panels that connect without a `?host=` query (older Premiere builds of the plugin). */
+const DEFAULT_HOST: HostId = "premierepro";
+
 /** A bridge between the server and the UXP plugin. */
 export interface Bridge {
-    isConnected(): boolean;
+    /**
+     * Whether the panel that handles `actionId` is connected. Without an `actionId`, checks Premiere Pro
+     * (the original, single-host behavior).
+     */
+    isConnected(actionId?: string): boolean;
     sendToUxp(
         actionId: string,
         params: Record<string, unknown>,
@@ -25,13 +38,15 @@ export interface Bridge {
 
 /** A request that is pending a response from the UXP plugin. */
 type PendingRequest = {
+    host: HostId;
     resolve: (msg: ClientMessage) => void;
     timer: NodeJS.Timeout;
 };
 
 export class UxpBridge implements Bridge, ManagedServer {
     private wss: WebSocketServer | null = null;
-    private uxpSocket: WebSocket | null = null;
+    /** One panel connection per host application, so Premiere Pro and After Effects can run side by side. */
+    private readonly uxpSockets = new Map<HostId, WebSocket>();
     private readonly pending = new Map<string, PendingRequest>();
 
     constructor(
@@ -48,24 +63,33 @@ export class UxpBridge implements Bridge, ManagedServer {
             wss.once("error", reject);
         });
 
-        wss.on("connection", (ws) => {
-            if (this.uxpSocket?.readyState === WebSocket.OPEN) {
+        wss.on("connection", (ws, req) => {
+            const host = parseHost(req.url);
+            if (!host) {
+                logError("UXP", `rejected a connection with an unknown host: ${req.url}`);
+                ws.close(CLOSE_POLICY_VIOLATION, "Unknown host");
+                return;
+            }
+
+            const label = HOST_LABELS[host];
+            if (this.uxpSockets.get(host)?.readyState === WebSocket.OPEN) {
                 logError(
                     "UXP",
-                    "rejected a new Premiere connection; only one is supported at a time",
+                    `rejected a new ${label} connection; only one is supported at a time`,
                 );
                 ws.close(
                     CLOSE_POLICY_VIOLATION,
-                    "Only one Premiere connection is allowed",
+                    // "Premiere" (not "Premiere Pro") is the original wording; kept for compatibility.
+                    `Only one ${host === "premierepro" ? "Premiere" : label} connection is allowed`,
                 );
                 return;
             }
 
-            log("UXP", "plugin connected");
-            this.uxpSocket = ws;
+            log("UXP", `${label} plugin connected`);
+            this.uxpSockets.set(host, ws);
 
             ws.on("message", this.handleUxpMessage);
-            ws.on("close", this.handleUxpClose);
+            ws.on("close", () => this.handleUxpClose(host, ws));
             ws.on("error", (err) => logError("UXP", "socket error:", err));
         });
 
@@ -95,12 +119,10 @@ export class UxpBridge implements Bridge, ManagedServer {
         return (this.wss.address() as AddressInfo).port;
     }
 
-    /** Returns true if the UXP plugin is currently connected. */
-    isConnected(): boolean {
-        return (
-            this.uxpSocket !== null &&
-            this.uxpSocket.readyState === WebSocket.OPEN
-        );
+    /** Returns true if the UXP plugin that handles `actionId` (default: Premiere Pro) is currently connected. */
+    isConnected(actionId?: string): boolean {
+        const host = actionId ? hostForAction(actionId) : DEFAULT_HOST;
+        return this.uxpSockets.get(host)?.readyState === WebSocket.OPEN;
     }
 
     /** Sends a message to the UXP plugin and returns a promise that resolves with the response. */
@@ -109,12 +131,13 @@ export class UxpBridge implements Bridge, ManagedServer {
         params: Record<string, unknown>,
         sourceType: SourceType,
     ): Promise<ClientMessage> {
-        const socket = this.uxpSocket;
+        const host = hostForAction(actionId);
+        const socket = this.uxpSockets.get(host);
         if (!socket || socket.readyState !== WebSocket.OPEN) {
             return Promise.resolve({
                 id: randomUUID(),
                 status: "INTERNAL_ERROR",
-                message: "Premiere Pro is not connected",
+                message: `${HOST_LABELS[host]} is not connected`,
             });
         }
 
@@ -130,7 +153,7 @@ export class UxpBridge implements Bridge, ManagedServer {
                 });
             }, this.requestTimeoutMs);
 
-            this.pending.set(id, { resolve, timer });
+            this.pending.set(id, { host, resolve, timer });
 
             const msg: ServerMessage = {
                 id,
@@ -161,19 +184,28 @@ export class UxpBridge implements Bridge, ManagedServer {
         }
     };
 
-    /** Handles the UXP plugin disconnecting. Rejects all pending requests. */
-    private handleUxpClose = (): void => {
-        log("UXP", "plugin disconnected");
-        this.uxpSocket = null;
-        this.rejectAllPending("UXP connection closed");
-    };
+    /** Handles a UXP plugin disconnecting. Rejects that host's pending requests. */
+    private handleUxpClose(host: HostId, ws: WebSocket): void {
+        log("UXP", `${HOST_LABELS[host]} plugin disconnected`);
+        // Only forget the socket if it is still the registered one for this host.
+        if (this.uxpSockets.get(host) === ws) this.uxpSockets.delete(host);
+        this.rejectAllPending("UXP connection closed", host);
+    }
 
-    /** Iterates over all pending requests and rejects them with the given reason. */
-    private rejectAllPending(reason: string): void {
+    /** Rejects pending requests with the given reason (all of them, or only those of one host). */
+    private rejectAllPending(reason: string, host?: HostId): void {
         for (const [id, req] of this.pending) {
+            if (host && req.host !== host) continue;
             clearTimeout(req.timer);
+            this.pending.delete(id);
             req.resolve({ id, status: "INTERNAL_ERROR", message: reason });
         }
-        this.pending.clear();
     }
+}
+
+/** Reads the host from a connection URL such as `/?host=aftereffects`. No query means the default host. */
+function parseHost(url: string | undefined): HostId | null {
+    const requested = new URL(url ?? "/", "ws://localhost").searchParams.get("host");
+    if (requested === null) return DEFAULT_HOST;
+    return (HOSTS as readonly string[]).includes(requested) ? (requested as HostId) : null;
 }

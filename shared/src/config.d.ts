@@ -3,3 +3,8 @@ export declare const INTERNAL_WS_PORT: number;
 export declare const WS_PORT: number;
 export declare const MCP_PORT: number;
 export declare const UXP_REQUEST_TIMEOUT_MS: number;
+export type HostId = "premierepro" | "aftereffects";
+export declare const HOSTS: readonly HostId[];
+export declare const HOST_LABELS: Record<HostId, string>;
+export declare const AE_ACTION_PREFIX: string;
+export declare function hostForAction(actionId: string): HostId;

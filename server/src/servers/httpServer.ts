@@ -5,6 +5,7 @@ import swaggerUi from "swagger-ui-express";
 import { readFileSync } from "fs";
 import type { AddressInfo } from "net";
 import type { Server } from "http";
+import { HOST_LABELS, hostForAction } from "premiereremote-shared/config";
 import type { Bridge } from "./uxpBridge.js";
 import type { ManagedServer } from "./server.js";
 import { formatValidationErrors } from "../openapi.js";
@@ -118,7 +119,7 @@ export class HttpServer implements ManagedServer {
         });
     };
 
-    // Repurposed as the generic catch-all that proxies each request to Premiere Pro.
+    // Repurposed as the generic catch-all that proxies each request to Premiere Pro or After Effects.
     // The set of operationIds lives in openapi.json and isn't known here,
     // so we can't hardcode a handler per operationId
     private handleNotImplemented = async (
@@ -126,17 +127,17 @@ export class HttpServer implements ManagedServer {
         _: express.Request,
         res: express.Response,
     ): Promise<express.Response | void> => {
-        if (!this.bridge.isConnected()) {
-            return res
-                .status(HTTP_SERVICE_UNAVAILABLE)
-                .json({ error: "Premiere Pro is not connected" });
-        }
-
         const actionId = c.operation.operationId;
         if (!actionId) {
             return res
                 .status(HTTP_INTERNAL_SERVER_ERROR)
                 .json({ error: "Matched operation has no operationId" });
+        }
+
+        if (!this.bridge.isConnected(actionId)) {
+            return res.status(HTTP_SERVICE_UNAVAILABLE).json({
+                error: `${HOST_LABELS[hostForAction(actionId)]} is not connected`,
+            });
         }
 
         // Merge path params, query params, and body into a flat params object

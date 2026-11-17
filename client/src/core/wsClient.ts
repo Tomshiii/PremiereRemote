@@ -1,6 +1,6 @@
 import { Registry, ParameterMetadata, UIInterface } from "./types.js";
 import type { ClientMessage, ServerMessage } from "premiereremote-shared";
-import { INTERNAL_WS_PORT } from "premiereremote-shared/config";
+import { INTERNAL_WS_PORT, type HostId } from "premiereremote-shared/config";
 import { Statuses } from "./ui.js";
 
 const WEBSOCKET_URL = `ws://localhost:${INTERNAL_WS_PORT}`;
@@ -15,6 +15,8 @@ export class WsClient {
     constructor(
         private readonly registry: Registry,
         private readonly ui: UIInterface,
+        /** Tells the server which application this panel belongs to, so it can route actions correctly. */
+        private readonly host: HostId = "premierepro",
     ) {}
 
     start(): void {
@@ -106,7 +108,7 @@ export class WsClient {
 
     private connect() {
         if (this.stopped) return;
-        const ws = new WebSocket(WEBSOCKET_URL);
+        const ws = new WebSocket(`${WEBSOCKET_URL}/?host=${this.host}`);
         this.ws = ws;
 
         const connectTimer = setTimeout(() => {
