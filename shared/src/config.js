@@ -10,7 +10,7 @@ export const WS_PORT = 42402;
 export const MCP_PORT = 42403;
 
 /** How long to wait for the UXP plugin to respond to a request before timing out. Adjust this number when experiencing timeouts in long-lasting UXP operations, e.g., full video cutting automation. */
-export const UXP_REQUEST_TIMEOUT_MS = 60_000;
+export const UXP_REQUEST_TIMEOUT_MS = 3_600_000;
 
 /** Host applications a UXP panel can run in. */
 export const HOSTS = ["premierepro", "aftereffects"];
